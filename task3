@@ -1,0 +1,97 @@
+# Best hyperparameters from Task 2
+best_lr = 0.01
+best_hl = 2
+best_hd = 32
+best_od = 8
+best_bs = 32
+
+# Final model definition
+final_model = GNNModel(input_dim=1, hidden_dim=best_hd, output_dim=best_od).to(device)
+optimizer = optim.Adam(final_model.parameters(), lr=best_lr)
+criterion = nn.MSELoss()
+
+# Full training dataset
+train_loader = DataLoader(dataset[:int(0.8*len(dataset))], batch_size=best_bs, shuffle=True)
+test_loader = DataLoader(dataset[int(0.8*len(dataset)):], batch_size=best_bs, shuffle=False)
+
+# Training loop for the final model
+for epoch in range(100):
+    train_loss = train()
+    test_loss = test()
+    print(f'Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}')
+
+# Save the final model
+torch.save(final_model.state_dict(), 'final_gnn_model.pth')
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# Function to evaluate the model on the test set
+def evaluate_model(model, loader):
+    model.eval()
+    predictions = []
+    actuals = []
+    with torch.no_grad():
+        for data in loader:
+            data = data.to(device)
+            output = model(data)
+            predictions.append(output.cpu().numpy())
+            actuals.append(data.y.cpu().numpy())
+    return np.concatenate(predictions), np.concatenate(actuals)
+
+# Get predictions and actual values
+predictions, actuals = evaluate_model(final_model, test_loader)
+
+# Compute metrics
+mae = mean_absolute_error(actuals, predictions)
+mse = mean_squared_error(actuals, predictions)
+r2 = r2_score(actuals, predictions)
+
+mae, mse, r2
+# Residual plot
+residuals = actuals - predictions
+plt.figure(figsize=(10, 6))
+plt.scatter(predictions, residuals)
+plt.axhline(0, color='red', linestyle='--')
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.title('Residual Plot')
+plt.savefig('/mnt/data/residual_plot.png')
+plt.show()
+# Learning curves
+epochs = range(1, 101)
+plt.figure(figsize=(10, 6))
+plt.plot(epochs, train_losses, label='Train Loss')
+plt.plot(epochs, test_losses, label='Test Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Learning Curves')
+plt.legend()
+plt.savefig('/mnt/data/learning_curves.png')
+plt.show()
+from sklearn.inspection import permutation_importance
+
+# Function to compute permutation importance
+def compute_permutation_importance(model, loader):
+    model.eval()
+    importance = {}
+    baseline_preds, _ = evaluate_model(model, loader)
+    baseline_score = mean_squared_error(actuals, baseline_preds)
+    for i in range(data.x.shape[1]):
+        shuffled_data = data.x.numpy()
+        np.random.shuffle(shuffled_data[:, i])
+        data.x = torch.tensor(shuffled_data, dtype=torch.float)
+        shuffled_preds, _ = evaluate_model(model, loader)
+        shuffled_score = mean_squared_error(actuals, shuffled_preds)
+        importance[i] = baseline_score - shuffled_score
+    return importance
+
+feature_importance = compute_permutation_importance(final_model, test_loader)
+
+# Plot feature importance
+plt.figure(figsize=(10, 6))
+plt.bar(range(len(feature_importance)), list(feature_importance.values()), align='center')
+plt.xticks(range(len(feature_importance)), list(feature_importance.keys()))
+plt.xlabel('Feature Index')
+plt.ylabel('Importance Score')
+plt.title('Feature Importance')
+plt.savefig('/mnt/data/feature_importance.png')
+plt.show()
