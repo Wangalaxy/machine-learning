@@ -1,0 +1,77 @@
+import itertools
+
+# Define the range of values for each hyperparameter
+learning_rates = [0.001, 0.01, 0.1]
+hidden_layers = [1, 2, 3]
+hidden_dims = [16, 32, 64]
+output_dims = [8, 16, 32]
+batch_sizes = [16, 32, 64]
+
+# Create a list of all possible combinations of hyperparameters
+hyperparameter_combinations = list(itertools.product(learning_rates, hidden_layers, hidden_dims, output_dims, batch_sizes))
+results = []
+
+for lr, hl, hd, od, bs in hyperparameter_combinations:
+    # Initialize model, optimizer, and loss function with current hyperparameters
+    model = GNNModel(input_dim=1, hidden_dim=hd, output_dim=od).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.MSELoss()
+    
+    # Create data loaders with current batch size
+    train_loader = DataLoader(dataset[:int(0.8*len(dataset))], batch_size=bs, shuffle=True)
+    test_loader = DataLoader(dataset[int(0.8*len(dataset)):], batch_size=bs, shuffle=False)
+    
+    # Training loop
+    for epoch in range(50):  # Reduced epochs for quicker tuning
+        train_loss = train()
+    
+    # Validation
+    val_loss = test()
+    
+    # Store the results
+    results.append((lr, hl, hd, od, bs, train_loss, val_loss))
+import pandas as pd
+
+columns = ['Learning Rate', 'Hidden Layers', 'Hidden Dim', 'Output Dim', 'Batch Size', 'Train Loss', 'Val Loss']
+results_df = pd.DataFrame(results, columns=columns)
+best_params = results_df.loc[results_df['Val Loss'].idxmin()]
+best_params
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Plotting the validation loss for different learning rates
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=results_df, x='Learning Rate', y='Val Loss', hue='Hidden Layers', style='Batch Size', markers=True, dashes=False)
+plt.title('Validation Loss vs Learning Rate')
+plt.xlabel('Learning Rate')
+plt.ylabel('Validation Loss')
+plt.savefig('/mnt/data/validation_loss_learning_rate.png')
+plt.show()
+# Plotting training and validation loss for best hyperparameters
+best_lr, best_hl, best_hd, best_od, best_bs = best_params[:5]
+
+model = GNNModel(input_dim=1, hidden_dim=best_hd, output_dim=best_od).to(device)
+optimizer = optim.Adam(model.parameters(), lr=best_lr)
+criterion = nn.MSELoss()
+
+train_loader = DataLoader(dataset[:int(0.8*len(dataset))], batch_size=best_bs, shuffle=True)
+test_loader = DataLoader(dataset[int(0.8*len(dataset)):], batch_size=best_bs, shuffle=False)
+
+train_losses = []
+val_losses = []
+
+for epoch in range(100):
+    train_loss = train()
+    val_loss = test()
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, 101), train_losses, label='Train Loss')
+plt.plot(range(1, 101), val_losses, label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training and Validation Loss with Best Hyperparameters')
+plt.legend()
+plt.savefig('/mnt/data/train_val_loss_best_params.png')
+plt.show()
